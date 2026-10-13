@@ -20,8 +20,17 @@
   <meta property="og:description" content="Школьный фонк-раннер: аура, скуфы и кнопка МОГНУТЬ.">
   <meta property="og:image" content="cover_800x470.png">
   <!-- VK Bridge -->
-  <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+  <script src="browser.min.js"></script>
 </head>
+<script>
+  if (window.vkBridge) {
+      window.vkBridge.send('VKWebAppInit')
+          .then(() => console.log('VKWebAppInit success'))
+          .catch(e => console.error('VKWebAppInit error', e));
+  } else {
+      console.error('VK Bridge not found!');
+  }
+</script>
   <body>
     <div id="unity-container" class="unity-desktop">
       <div id="unity-fullscreen-container">
