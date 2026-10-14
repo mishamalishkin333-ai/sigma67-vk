@@ -8,9 +8,98 @@
     <link rel="stylesheet" href="TemplateData/style.css">
     <meta name="sigma67-style" content="1">
 <style>
-  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#08040f;}
-  #unity-container,#unity-canvas{width:100%;height:100%;}
-  canvas{display:block;outline:none;}
+/* Раскладка игрового поля.
+   Игра запускается внутри iframe ВКонтакте и Яндекс Игр, а его размер заранее неизвестен.
+   Поэтому поле занимает весь доступный прямоугольник и центрируется, а жёсткие 1280x720
+   из шаблона Unity перебиваются. Футер шаблона скрыт: на его месте кнопка «на весь экран». */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #08040f;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#unity-container,
+#unity-container.unity-desktop,
+#unity-container.unity-mobile {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  transform: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#unity-fullscreen-container,
+.unity-mobile #unity-fullscreen-container {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+#unity-canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #1F1F20;
+  outline: none;
+}
+#unity-loading-container {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+#unity-footer {
+  display: none !important;
+}
+#sigma67-fs {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  z-index: 30;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(12, 6, 24, .55);
+  color: #ffe9a8;
+  font: 700 22px/44px system-ui, sans-serif;
+  cursor: pointer;
+  opacity: .65;
+  transition: opacity .15s, background .15s;
+}
+#sigma67-fs:hover {
+  opacity: 1;
+  background: rgba(12, 6, 24, .85);
+}
+#sigma67-fs.on {
+  opacity: 1;
+  color: #fff;
+  background: rgba(255, 60, 120, .35);
+}
+#unity-warning {
+  position: absolute;
+  left: 50%;
+  top: 5%;
+  transform: translateX(-50%);
+  background: #fff;
+  padding: 10px;
+  display: none;
+  z-index: 40;
+}
 </style>
   <meta name="sigma67-meta" content="1">
   <meta name="description" content="Могни 6-7: лови ауру, уворачивайся от скуфов и училки, включай режим 6-7 и жми МОГНУТЬ. Бесплатный фонк-раннер.">
@@ -19,17 +108,10 @@
   <meta property="og:title" content="МОГНУТЬ 6-7">
   <meta property="og:description" content="Школьный фонк-раннер: аура, скуфы и кнопка МОГНУТЬ.">
   <meta property="og:image" content="cover_800x470.png">
-  <!-- VK Bridge: только локальная копия — внутри ВК внешний CDN может быть недоступен -->
+  <meta name="sigma67-bridge" content="1">
+  <!-- VK Bridge: только локальная копия, внешний CDN в ВК ненадёжен -->
   <script src="browser.min.js"></script>
-  <script>
-    if (window.vkBridge) {
-        window.vkBridge.send('VKWebAppInit')
-            .then(() => console.log('VKWebAppInit success'))
-            .catch(e => console.error('VKWebAppInit error', e));
-    } else {
-        console.error('VK Bridge not found!');
-    }
-  </script>
+  <script>if(window.vkBridge){window.vkBridge.send('VKWebAppInit').catch(function(e){console.error('VKWebAppInit',e);});}</script>
 </head>
   <body>
     <div id="unity-container" class="unity-desktop">
@@ -80,17 +162,10 @@
         updateBannerVisibility();
       }
 
-      // Имена файлов сборки не меняются от версии к версии, поэтому кэш Unity надо сбрасывать
-      // вручную: productVersion входит в ключ кэша. Меняйте метку при каждой новой выкладке.
-      // К адресам ниже ничего приписывать нельзя — загрузчик Unity сам решает, когда брать
-      // сжатую версию файла (VK.wasm.gz), и лишние параметры ломают этот выбор.
-      var buildStamp = "20261014b";
       var buildUrl = "Build";
       var loaderUrl = buildUrl + "/VK.loader.js";
       var config = {
         arguments: [],
-        // .unityweb — так называются сжатые gzip-файлы сборки; загрузчик распаковывает их
-        // сам (decompression fallback), поэтому заголовки Content-Encoding от сервера не нужны
         dataUrl: buildUrl + "/VK.data.unityweb",
         frameworkUrl: buildUrl + "/VK.framework.js.unityweb",
         codeUrl: buildUrl + "/VK.wasm.unityweb",
@@ -103,7 +178,7 @@
 
         companyName: "Sigma67 Games",
         productName: "MOGNUT 6-7",
-        productVersion: "1.0-" + buildStamp,
+        productVersion: "1.0-20261014-1904",
         showBanner: unityShowBanner,
         // errorHandler: function(err, url, line) {
         //    alert("error " + err + " occurred at line " + line);
@@ -177,5 +252,83 @@
       document.body.appendChild(script);
 
     </script>
-  </body>
+  <script>
+/* Кнопка «на весь экран».
+   В Контакте игра живёт в iframe, и разворот разрешён не во всех окружениях
+   (в мобильном приложении ВК игра и так занимает весь экран). Поэтому при отказе
+   показываем понятную подсказку, а не молчим: молчащая кнопка выглядит как баг. */
+(function () {
+  var container = document.getElementById("unity-fullscreen-container") || document.documentElement;
+
+  function fsEl() {
+    return document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement || null;
+  }
+
+  /* Просим разворот у того элемента, который Unity считает корнем игры:
+     так canvas гарантированно растягивается на весь экран. */
+  function ask() {
+    var el = container;
+    var fn = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    if (!fn) {
+      el = document.documentElement;
+      fn = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    }
+    return fn ? fn.call(el) : null;
+  }
+
+  function leave() {
+    var fn = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+    if (fn) fn.call(document);
+  }
+
+  function hint(text) {
+    if (typeof unityShowBanner === "function") unityShowBanner(text, "warning");
+    console.warn("[sigma67] " + text);
+  }
+
+  var btn = document.createElement("button");
+  btn.id = "sigma67-fs";
+  btn.type = "button";
+  btn.title = "На весь экран (F)";
+  btn.setAttribute("aria-label", "Развернуть игру на весь экран");
+  btn.innerHTML = "&#9974;";
+  document.body.appendChild(btn);
+
+  function toggle() {
+    if (fsEl()) {
+      try { leave(); } catch (e) { }
+      return;
+    }
+    var p = null;
+    try { p = ask(); } catch (e) { p = null; }
+    if (!p || typeof p.then !== "function") {
+      hint("Это окно не умеет открывать игру на весь экран — откройте её в отдельной вкладке браузера.");
+      return;
+    }
+    p.then(function () {
+      btn.classList.add("on");
+    }).catch(function () {
+      btn.classList.remove("on");
+      hint("ВКонтакте не разрешил разворот на весь экран: игра и так занимает всё окно. " +
+           "Полный экран работает, если открыть игру в браузере отдельной вкладкой.");
+    });
+  }
+
+  btn.addEventListener("click", function (e) {
+    e.preventDefault();
+    toggle();
+  });
+
+  function sync() {
+    btn.classList.toggle("on", !!fsEl());
+  }
+  document.addEventListener("fullscreenchange", sync);
+  document.addEventListener("webkitfullscreenchange", sync);
+  document.addEventListener("keydown", function (e) {
+    var k = e.key;
+    if (k === "f" || k === "F" || k === "\u0430" || k === "\u0410") toggle();
+  });
+})();
+</script>
+</body>
 </html>
